@@ -1,5 +1,5 @@
-name    'wolfspyre-vmware_puppetfact'
-version '0.2.2'
+name    'edgehosting-vmware_puppetfact'
+version 'edge-1.0.0'
 source 'UNKNOWN'
 author 'wolfspyre'
 license 'Apache License, Version 2.0'
