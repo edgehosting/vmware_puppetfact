@@ -27,69 +27,24 @@ Facter.add(:vmware) do
   confine :virtual => :vmware
   #VMWare, but not linux
   setcode do
-    'vmware-unknown'
+    'vmware'
   end
 end
+
 Facter.add(:vmware) do
   confine :virtual => :vmware
   confine :kernel => :linux
   #vmware and linux. whee!
   setcode do
     hasdmi = Facter::Util::Resolution.exec('which dmidecode')
-    if hasdmi.nil?
-      #no dmidecode
-      result='vmware-linux'
+    if (hasdmi.nil? == true)
+      result = 'vmware'
     else
-      foobar = Facter::Util::Resolution.exec("#{hasdmi} -t bios")
-      if foobar.nil?
-        result='vmware-linux'
-      else
-        if foobar.match(/No SMBIOS nor DMI entry point found, sorry/)
-          result='vmware-linux'
-        else
-          #we're good
-          mainver  = 'vmware-linux'
-          if foobar.include? 'Address'
-            address = foobar.match(/Address: 0x(.*)/i)[0]
-          else
-            address = 'no_data'
-          end
-          if foobar.include? 'Release Date'
-            biosdate = foobar.match(/Release Date: (.*)/i)[0]
-          else
-            biosdate = 'no_data'
-          end
-          case
-          when address.match(/E8480/)
-            mainver = '2.5'
-          when address.match(/E7C70/)
-            mainver = '3.0'
-          when address.match(/E7910/)
-            mainver = '3.5'
-          when address.match(/E66C0/)
-            mainver = '3.5'
-          when address.match(/EA6C0/)
-            mainver = '4.0'
-          when address.match(/EA550/)
-            mainver = '4.0'
-          when address.match(/EA2E0/)
-            mainver = '4.1'
-          when address.match(/E72C0/)
-            mainver = '5.0'
-          when address.match(/EA0C0/)
-            mainver = '5.1'
-          when address.match(/EA050/)
-            mainver = '5.5'
-          when address.match(/E9A40/)
-            mainver = '6.0'
-          end
-          result=mainver
-        end
-      end
+      result = determine_version(hasdmi)
     end
-    result
   end
 end
+
 Facter.add(:vmware_patchlevel) do
   confine :virtual => :vmware
   setcode do
@@ -102,59 +57,146 @@ Facter.add(:vmware_patchlevel) do
   confine :kernel => :linux
   setcode do
     hasdmi = Facter::Util::Resolution.exec('which dmidecode')
-    if hasdmi.nil?
-      #no dmidecode
-      result='vmware-linux'
+    if (hasdmi.nil? == true)
+      result = 'vmware'
     else
-      foobar = Facter::Util::Resolution.exec("#{hasdmi} -t bios")
-      if foobar.nil?
-        result='vmware-linux'
-      else
-        if foobar.match(/No SMBIOS nor DMI entry point found, sorry/)
-          result='vmware-linux'
-        else
-          #we're good
-          update  = 'unknown'
-          if foobar.include? 'Address'
-            address = foobar.match(/Address: 0x(.*)/i)[0]
-          else
-            address = 'no_data'
-          end
-          if foobar.include? 'Release Date'
-            biosdate = foobar.match(/Release Date: (.*)/i)[0]
-          else
-            biosdate = 'no_data'
-          end
-          case
-            #we only have means of detecting 4.1u2, 5.0u1, 5.0u2 right now.
-          when address.match(/EA2E0/)
-            if biosdate.include? '04/15/2011'
-              update = 'u2'
-            end
-          when address.match(/E72C0/)
-            if biosdate.include? '09/21/2011'
-              update = 'u1'
-            end
-            if biosdate.include? '07/09/2012'
-              update = 'u2'
-            end
-            # Adds 5.5 u1 and u2
-          when address.match(/EA050/)
-            if biosdate.include? '07/30/2013'
-              update = 'u1'
-            end 
-            if biosdate.include? '04/14/2014'
-              update = 'u2'
-            end
-          end
-        end
-      end
+      result = determine_patch(hasdmi)
     end
-    update
   end
 end
+
 Facter.add(:vmware_patchlevel) do
   setcode do
     nil
   end
+end
+
+#Windows
+path = "c:\\programdata\\edge\\dmidecode.exe"
+Facter.add(:vmware) do
+  confine :virtual => :vmware
+  confine :kernel => :windows
+  #vmware and windows. whee!
+  setcode do
+    hasdmi = File.exist?(path)
+    if (hasdmi == false)
+      result = 'vmware'
+    else
+      result = determine_version("c:\\programdata\\edge\\dmidecode.exe")
+    end
+  end
+end
+
+Facter.add(:vmware_patchlevel) do
+  confine :virtual => :vmware
+  confine :kernel => :windows
+  setcode do
+    hasdmi = File.exist?(path)
+    if (hasdmi == false)
+      result = 'vmware'
+    else
+      result = determine_patch("c:\\programdata\\edge\\dmidecode.exe")
+    end
+  end
+end
+
+def determine_version(path)
+  foobar = Facter::Util::Resolution.exec("#{path} -t bios")
+  if foobar.nil?
+    retval='vmware'
+  else
+    if foobar.match(/No SMBIOS nor DMI entry point found, sorry/)
+      retval='vmware'
+    else
+      #we're good
+      mainver  = 'vmware'
+      if foobar.include? 'Address'
+        address = foobar.match(/Address: 0x(.*)/i)[0]
+      else
+        address = 'unknown'
+      end
+      if foobar.include? 'Release Date'
+        biosdate = foobar.match(/Release Date: (.*)/i)[0]
+      else
+        biosdate = 'unknown'
+      end
+      case
+      when address.match(/E8480/)
+        mainver = '2.5'
+      when address.match(/E7C70/)
+        mainver = '3.0'
+      when address.match(/E7910/)
+        mainver = '3.5'
+      when address.match(/E66C0/)
+        mainver = '3.5'
+      when address.match(/EA6C0/)
+        mainver = '4.0'
+      when address.match(/EA550/)
+        mainver = '4.0'
+      when address.match(/EA2E0/)
+        mainver = '4.1'
+      when address.match(/E72C0/)
+        mainver = '5.0'
+      when address.match(/EA0C0/)
+        mainver = '5.1'
+      when address.match(/EA050/)
+        mainver = '5.5'
+      when address.match(/E9A40/)
+        mainver = '6.0'
+      end
+      retval=mainver
+    end
+  end
+  return retval
+end
+
+def determine_patch(path)
+  foobar = Facter::Util::Resolution.exec("#{path} -t bios")
+  if foobar.nil?
+    retval='vmware'
+  else
+    if foobar.match(/No SMBIOS nor DMI entry point found, sorry/)
+      retval='vmware'
+    else
+      #we're good
+      retval  = 'unknown'
+      if foobar.include? 'Address'
+        address = foobar.match(/Address: 0x(.*)/i)[0]
+      else
+        address = 'unknown'
+      end
+      if foobar.include? 'Release Date'
+        biosdate = foobar.match(/Release Date: (.*)/i)[0]
+      else
+        biosdate = 'unknown'
+      end
+      case
+        #we only have means of detecting 4.1u2, 5.0u1, 5.0u2 right now.
+      when address.match(/EA2E0/)
+        if biosdate.include? '04/15/2011'
+          retval = 'u2'
+        end
+      when address.match(/E72C0/)
+        if biosdate.include? '09/21/2011'
+          retval = 'u1'
+        end
+        if biosdate.include? '07/09/2012'
+          retval = 'u2'
+        end
+        # Adds 5.5 u1 and u2
+      when address.match(/EA050/)
+        if biosdate.include? '07/30/2013'
+          retval = 'u1'
+        end 
+        if biosdate.include? '04/14/2014'
+          retval = 'u2'
+        end
+      when address.match(/E9A40/)
+        if biosdate.include? '09/30/2014'
+          retval = 'u0'
+        end
+      end
+    end
+  end
+  return retval
 end

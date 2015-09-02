@@ -12,5 +12,25 @@
 #
 # Copyright 2011 Your name here, unless otherwise noted.
 #
-class vmware_fact {
+class vmware_puppetfact (
+	$dmidecode_version = undef,
+) {
+	$destpath = 'C:\ProgramData\edge'
+	$filename = 'dmidecode.exe'
+	$dmidecode = "${destpath}\\${filename}"
+
+	if (downcase($::osfamily) == 'windows'){
+		ewhlib::filestorage::fetchfile { $dmidecode:
+			provider => "artifactory",
+			format => "exe",
+			group => "dmidecode",
+			version => "$dmidecode_version",
+			folder => "false",
+			package => "dmidecode",
+			platform => "x86",
+			require => [
+				File[$destpath],
+			],
+		}
+	}
 }
